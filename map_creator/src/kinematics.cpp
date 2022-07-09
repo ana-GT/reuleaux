@@ -1,56 +1,42 @@
+/**
+ * @file kinematics.cpp
+ */
 #include <map_creator/kinematics.h>
 
-#if IK_VERSION > 54
-#define IKREAL_TYPE IkReal  // for IKFast 56,61
-#else
-#define IKREAL_TYPE IKReal  // for IKFast 54
-#endif
+double eerot[9], eetrans[3];
 
-IKREAL_TYPE eerot[9], eetrans[3];
 namespace kinematics
 {
-float Kinematics::SIGN(float x)
+double Kinematics::SIGN(double x)
 {
   return (x >= 0.0f) ? +1.0f : -1.0f;
 }
 
-float Kinematics::NORM(float a, float b, float c, float d)
+double Kinematics::NORM(double a, double b, double c, double d)
 {
   return sqrt(a * a + b * b + c * c + d * d);
 }
 
-void Kinematics::getPoseFromFK(const std::vector< double > joint_values, std::vector< double >& pose)
+unsigned int Kinematics::getNumJoints()
 {
-#if IK_VERSION > 54
-  // for IKFast 56,61
-  unsigned int num_of_joints = GetNumJoints();
-  unsigned int num_free_parameters = GetNumFreeParameters();
-#else
-  // for IKFast 54
-  unsigned int num_of_joints = getNumJoints();
-  unsigned int num_free_parameters = getNumFreeParameters();
-#endif
-  IKREAL_TYPE joints[num_of_joints];
+  return 7;
+}
 
-  // cout<<joint_values[2]<<endl;
+void Kinematics::getPoseFromFK(const std::vector<double> joint_values,
+			       std::vector<double>& pose)
+{
+  unsigned int num_of_joints = this->getNumJoints();
+  //  unsigned int num_free_parameters = this->getNumFreeParameters();
 
-  for (unsigned int i = 0; i < num_of_joints; i++)
-  {
-    joints[i] = joint_values[i];
-  }
-#if IK_VERSION > 54
-  // for IKFast 56,61
-  ComputeFk(joints, eetrans, eerot);  // void return
-#else
-  // for IKFast 54
-  fk(joints, eetrans, eerot);  // void return
-#endif
-  // cout<<"translation: "<<eetrans[0]<<" "<<eetrans[1]<<" "<<eetrans[2]<<endl;
-  // Convert rotation matrix to quaternion (Daisuke Miyazaki)
-  float q0 = (eerot[0] + eerot[4] + eerot[8] + 1.0f) / 4.0f;
-  float q1 = (eerot[0] - eerot[4] - eerot[8] + 1.0f) / 4.0f;
-  float q2 = (-eerot[0] + eerot[4] - eerot[8] + 1.0f) / 4.0f;
-  float q3 = (-eerot[0] - eerot[4] + eerot[8] + 1.0f) / 4.0f;
+  std::vector<double> joints = joint_values;
+
+
+  this->computeFk(joints, eetrans, eerot);
+
+  double q0 = (eerot[0] + eerot[4] + eerot[8] + 1.0f) / 4.0f;
+  double q1 = (eerot[0] - eerot[4] - eerot[8] + 1.0f) / 4.0f;
+  double q2 = (-eerot[0] + eerot[4] - eerot[8] + 1.0f) / 4.0f;
+  double q3 = (-eerot[0] - eerot[4] + eerot[8] + 1.0f) / 4.0f;
   if (q0 < 0.0f)
     q0 = 0.0f;
   if (q1 < 0.0f)
@@ -95,7 +81,7 @@ void Kinematics::getPoseFromFK(const std::vector< double > joint_values, std::ve
   {
     printf("Error while converting to quaternion! \n");
   }
-  float r = NORM(q0, q1, q2, q3);
+  double r = NORM(q0, q1, q2, q3);
   q0 /= r;
   q1 /= r;
   q2 /= r;
@@ -109,27 +95,23 @@ void Kinematics::getPoseFromFK(const std::vector< double > joint_values, std::ve
   pose.push_back(q0);
 }
 
-bool Kinematics::isIKSuccess(const std::vector< double >& pose, std::vector< double >& joints, int& numOfSolns)
+void Kinematics::computeFk(std::vector<double> joints,
+			   double[3] eetrans,
+			   double[9] eerot)
 {
-#if IK_VERSION > 54
-  // for IKFast 56,61
-  unsigned int num_of_joints = GetNumJoints();
-  unsigned int num_free_parameters = GetNumFreeParameters();
-#else
-  // for IKFast 54
-  unsigned int num_of_joints = getNumJoints();
-  unsigned int num_free_parameters = getNumFreeParameters();
-#endif
 
-#if IK_VERSION > 54
-  // IKREAL_TYPE joints[num_of_joints];
-  // for IKFast 56,61
-  IkSolutionList< IKREAL_TYPE > solutions;
-#else
-  // for IKFast 54
-  std::vector< IKSolution > vsolutions;
-#endif
-  std::vector< IKREAL_TYPE > vfree(num_free_parameters);
+}
+  
+bool Kinematics::isIKSuccess(const std::vector< double >& pose,
+			     std::vector< double >& joints,
+			     int& numOfSolns)
+{
+  unsigned int num_of_joints = this->getNumJoints();
+  //  unsigned int num_free_parameters = GetNumFreeParameters();
+
+  std::vector<std::vector<double> > solutions;
+
+  //  std::vector< IKREAL_TYPE > vfree(num_free_parameters);
   eetrans[0] = pose[0];
   eetrans[1] = pose[1];
   eetrans[2] = pose[2];
@@ -156,29 +138,14 @@ bool Kinematics::isIKSuccess(const std::vector< double >& pose, std::vector< dou
 // TODO: the user have to define the number of free parameters for the manipulator if it has more than 6 joints. So
 // currently more than 6 joints are not supported yet.
 
-#if IK_VERSION > 54
-  // for IKFast 56,61
   bool b1Success = ComputeIk(eetrans, eerot, vfree.size() > 0 ? &vfree[0] : NULL, solutions);
 
-#else
-  // for IKFast 54
-  bool b2Success = ik(eetrans, eerot, vfree.size() > 0 ? &vfree[0] : NULL, vsolutions);
 
-#endif
-#if IK_VERSION > 54
-  // for IKFast 56,61
   unsigned int num_of_solutions = (int)solutions.GetNumSolutions();
   numOfSolns = num_of_solutions;
-#else
-  // for IKFast 54
-  unsigned int num_of_solutions = (int)vsolutions.size();
-  numOfSolns = num_of_solutions;
-#endif
 
   joints.resize(num_of_joints);
 
-#if IK_VERSION > 54
-  // for IKFast 56,61
   if (!b1Success)
   {
     return false;
@@ -198,20 +165,7 @@ bool Kinematics::isIKSuccess(const std::vector< double >& pose, std::vector< dou
     }
     return true;
   }
-#else
-  if (!b2success)
-  {
-    return false;
-  }
-  else
-  {
-    // cout<<"Found ik solutions: "<< num_of_solutions<<endl;
-    int this_sol_free_params = (int)vsolutions[i].GetFree().size();
-    std::vector< IKREAL_TYPE > vsolfree(this_sol_free_params);
-    vsolutions[i].GetSolution(&solvalues[0], vsolfree.size() > 0 ? &vsolfree[0] : NULL);
-    return true;
-  }
-#endif
+
 }
 
 const std::string Kinematics::getRobotName()
