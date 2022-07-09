@@ -17,6 +17,9 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 find_package(octomap REQUIRED)
+find_package(PkgConfig)
+set(PKG_CONFIG_PATH /usr/lib/x86_64-linux-gnu/pkgconfig)
+pkg_check_modules(HDF5 REQUIRED hdf5-serial)
 
 add_message_files(
  FILES
@@ -44,7 +47,8 @@ catkin_package(
   CATKIN_DEPENDS message_runtime 
 )
 
-include_directories(include ${catkin_INCLUDE_DIRS} ${OCTOMAP_INCLUDE_DIRS} ${HDF5_INCLUDE_DIR} ${PCL_INCLUDE_DIR})
+include_directories(include ${catkin_INCLUDE_DIRS} ${OCTOMAP_INCLUDE_DIRS} ${HDF5_INCLUDE_DIRS} ${PCL_INCLUDE_DIR})
+link_directories(${HDF5_LIBRARY_DIRS})
 
 add_library(sphere_discretization  src/sphere_discretization.cpp)
 add_library(kinematics  src/kinematics.cpp )

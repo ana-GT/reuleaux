@@ -20,9 +20,12 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_core
 )
 
-find_package(Qt4 COMPONENTS QtCore QtGui REQUIRED)
+find_package(Qt5 ${rviz_QT_VERSION} EXACT REQUIRED Core Widgets Gui Concurrent)
+set(QT_LIBRARIES Qt5::Widgets Qt5::Core Qt5::Gui Qt5::Concurrent)
 
-include(${QT_USE_FILE})
+find_package(PkgConfig)
+set(PKG_CONFIG_PATH /usr/lib/x86_64-linux-gnu/pkgconfig)
+pkg_check_modules(HDF5 REQUIRED hdf5-serial)
 
 
 add_definitions(-DQT_NO_KEYWORDS)
@@ -38,8 +41,6 @@ set(base_placement_plugin_SRCS
   src/widgets/base_placement_widget.cpp
   src/place_base.cpp
   src/add_robot_base.cpp
-
-  
   ${MOC_FILES}
 )
 
@@ -77,12 +78,14 @@ catkin_package(
   map_creator
 )
 
-qt4_wrap_cpp(base_placement_plugin_MOCS ${base_placement_plugin_HDRS} )
-qt4_wrap_ui(base_placement_plugin_UIS_H ${base_placement_plugin_UIS} )
+qt5_wrap_cpp(base_placement_plugin_MOCS ${base_placement_plugin_HDRS} )
+qt5_wrap_ui(base_placement_plugin_UIS_H ${base_placement_plugin_UIS} )
 
-include_directories(${base_placement_plugin_INCLUDE_DIRECTORIES} ${catkin_INCLUDE_DIRS})
+include_directories(${base_placement_plugin_INCLUDE_DIRECTORIES} ${catkin_INCLUDE_DIRS} ${HDF5_INCLUDE_DIRS})
+link_directories(${HDF5_LIBRARY_DIRS})
+
 add_library(${PROJECT_NAME} ${base_placement_plugin_SRCS} ${base_placement_plugin_MOCS} ${base_placement_plugin_UIS_H}) # ${base_placement_plugin_UIS_H}
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${QT_QTCORE_LIBRARY} ${QT_QTGUI_LIBRARY}  yaml-cpp -lhdf5 -lhdf5_cpp  create_marker)
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES}  ${QT_LIBRARIES}  yaml-cpp -lhdf5 -lhdf5_cpp  create_marker)
 ## target_link_libraries(${PROJECT_NAME} yaml-cpp)
 
 
