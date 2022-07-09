@@ -123,12 +123,12 @@ void ReachMapDisplay::updateSphereSize()
 }
 
 void ReachMapDisplay::processMessage(const map_creator::WorkSpace::ConstPtr& msg)
-{
+{printf("Processing message: header: %s \n", msg->header.frame_id.c_str());
   Ogre::Quaternion orientation;
   Ogre::Vector3 position;
   if (!context_->getFrameManager()->getTransform(msg->header.frame_id, msg->header.stamp, position, orientation))
   {
-    ROS_DEBUG("Error transforming from frame '%s' to frame '%s'", msg->header.frame_id.c_str(),
+    ROS_WARN("Error transforming from frame '%s' to frame '%s'", msg->header.frame_id.c_str(),
               qPrintable(fixed_frame_));
     return;
   }

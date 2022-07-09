@@ -35,7 +35,7 @@ int main(int argc, char **argv)
     // Creating messages
     map_creator::WorkSpace ws;
     ws.header.stamp = ros::Time::now();
-    ws.header.frame_id = "/base_link";
+    ws.header.frame_id = "base_link";
     ws.resolution = res;
 
     for (MapVecDoublePtr::iterator it = sphere_col.begin(); it != sphere_col.end(); ++it)
@@ -64,7 +64,7 @@ int main(int argc, char **argv)
     while (ros::ok())
     {
       workspace_pub.publish(ws);
-
+      printf("WS header: %s \n", ws.header.frame_id.c_str());
       ros::spinOnce();
       sleep(5);
       ++count;
