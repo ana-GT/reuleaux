@@ -138,6 +138,7 @@ void PlaceBase::getSelectedOpType(int op_index)
 
 bool PlaceBase::checkforRobotModel()
 {
+  bool ret = false;
   if(!robot_model_)
   {
     if(loadRobotModel())
@@ -147,11 +148,13 @@ bool PlaceBase::checkforRobotModel()
       //ROS_INFO("Sending the robot groups list");
       Q_EMIT sendGroupType_signal(group_names_);
       ROS_INFO("Please select your manipulator group. ");
-      return true;
+      ret = true;
     }
    }
   else
-    return true;
+    ret = true;
+    
+  return ret;
 }
 
 bool PlaceBase::loadRobotModel()
@@ -480,6 +483,7 @@ bool PlaceBase::findbase(std::vector< geometry_msgs::Pose > grasp_poses)
 
   Q_EMIT basePlacementProcessFinished();
   ROS_INFO("FindBase Task Finished");
+  return true;
 }
 
 void PlaceBase::BasePlaceMethodHandler()
