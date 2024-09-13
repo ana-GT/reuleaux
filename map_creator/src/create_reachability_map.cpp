@@ -32,54 +32,37 @@ bool isFloat(std::string s)
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "workspace");
-  ros::NodeHandle n;
-  ros::Time startit = ros::Time::now();
+  ros::NodeHandle pnh("~");
+  
   float resolution = 0.08;
-  kinematics::Kinematics k;
-  std::string file = str(boost::format("%s_r%d_reachability.h5") % k.getRobotName() % resolution);
+  std::string group;
+
+  pnh.getParam("resolution", resolution);
+  if(!pnh.getParam("group", group))
+  {
+     ROS_ERROR("Need group argument set");
+     return 1;
+  }
+
+
+  ros::Time startit = ros::Time::now();
+  
+  ROS_INFO("Creating kin");
+  kinematics::Kinematics kin;
+  if(!kin.init(group))
+  {
+     ROS_ERROR("Error initializing kinematics");
+     return 1;
+  }
+  std::string file = str(boost::format("%s_r%d_reachability.h5") % kin.getRobotName() % resolution);
   std::string path(ros::package::getPath("map_creator") + "/maps/");
   std::string filename;
-  if (argc == 2)
-  {
-    if (!isFloat(argv[1]))
-    {
-      ROS_ERROR_STREAM("Probably you have just provided only the map filename. Hey!! The first argument is the "
-                       "resolution.");
-      return 0;
-    }
-    resolution = atof(argv[1]);
-    file = str(boost::format("%s_r%d_reachability.h5") % k.getRobotName() % resolution);
-    filename = path + file;
-  }
+  
+  file = str(boost::format("%s_r%d_reachability.h5") % kin.getRobotName() % resolution);
+  filename = path + file;
 
-  else if (argc == 3)
-  {
-    std::string name;
-    name = argv[2];
-    if (!isFloat(argv[1]) && isFloat(argv[2]))
-    {
-      ROS_ERROR_STREAM("Hey!! The first argument is the resolution and the second argument is the map filename. You "
-                       "messed up.");
-      return 0;
-    }
+  ROS_INFO("Resolution: %f filename: %s", resolution, filename.c_str());
 
-    else
-    {
-      resolution = atof(argv[1]);
-      std::string str(argv[2]);
-      if(std::strchr(str.c_str(), '/'))
-      {
-        filename = argv[2];
-      }
-      else
-        filename = path + str;
-    }
-  }
-  else if (argc < 2)
-  {
-    ROS_INFO("You have not provided any argument. So taking default values.");
-    filename = path + file;
-  }
   // ros::Publisher workspace_pub = n.advertise<map_creator::WorkSpace>("workspace", 10);
   ros::Rate loop_rate(10);
 
@@ -161,12 +144,10 @@ int main(int argc, char **argv)
     {
       static std::vector< double > joints(6);
       int solns;
-      if (k.isIKSuccess(it->first, joints, solns))
+      if (kin.isIKSuccess(it->first, joints, solns))
       {
         pose_col_filter.insert( std::make_pair( it->second, &(it->first)));
         ik_solutions.push_back(joints);
-        // cout<<it->first[0]<<" "<<it->first[1]<<" "<<it->first[2]<<" "<<it->first[3]<<" "<<it->first[4]<<"
-        // "<<it->first[5]<<" "<<it->first[6]<<endl;
       }
     }
 

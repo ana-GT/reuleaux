@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<launch>
+
+  <arg name="resolution" default="0.05"/>
+  <arg name="group" default="arm"/>
+
+  <param name="robot_description" 
+         command="$(find xacro)/xacro '$(find robots_config)/urdf/panda/panda.urdf.xacro' "/>
+
+  <param name="robot_description_semantic" 
+         textfile="$(find robots_config)/config/panda/panda.srdf"/>
+
+
+  <node pkg="map_creator" 
+        type="create_reachability_map" output="screen" 
+        name="create_reachability_map">
+    <param name="resolution" value="$(arg resolution)"/> 
+    <param name="group" value="$(arg group)"/>     
+  </node>      
+
+</launch>

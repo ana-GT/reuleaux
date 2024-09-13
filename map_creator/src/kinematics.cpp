@@ -17,14 +17,95 @@ double Kinematics::NORM(double a, double b, double c, double d)
   return sqrt(a * a + b * b + c * c + d * d);
 }
 
+Kinematics::Kinematics()
+{}
+
+bool Kinematics::init(const std::string &_group)
+{  
+  ROS_WARN("Kinematics init");
+  std::string urdf_string, srdf_string;
+  if(!nh_.getParam("robot_description", urdf_string))
+     return false;
+  ROS_WARN_STREAM("URDF STRING: " << urdf_string << std::endl);
+  if(!nh_.getParam("robot_description_semantic", urdf_string))
+     return false;
+  ROS_WARN("Seems we loaded urdf and srdf?");
+  urdf_.reset(new urdf::Model());
+  srdf_model_.reset(new srdf::Model());
+  ROS_WARN("Initializing urdf model");
+  
+  if(!urdf_->initString(urdf_string))
+  	return false;
+  ROS_WARN("Initializing srdf model");
+
+  if(!srdf_model_->initString(*urdf_, srdf_string))  	
+  	return false;
+  ROS_WARN("Starting tree");
+
+  if(!kdl_parser::treeFromUrdfModel(*urdf_, tree_))
+    return false;
+  ROS_WARN("Get chain info");
+
+  // Get chain for this group
+  if(!getChainInfo(_group))
+    return false;
+    
+  ik_max_time_ = 0.005;
+  ik_epsilon_ = 1e-5;
+  ik_type_ = TRAC_IK::Speed;  
+  ik_solver_.reset( new TRAC_IK::TRAC_IK(chain_root_link_, 
+                              chain_tip_link_, 
+                              "robot_description", 
+                              ik_max_time_, ik_epsilon_, ik_type_));
+
+  // Create FIK solver
+  fk_solver_.reset( new KDL::ChainFkSolverPos_recursive(chain_));
+  return true;
+}
+
+/**
+ * @function getChainInfo
+ */
+bool Kinematics::getChainInfo(const std::string &_group)
+{
+  std::vector<srdf::Model::Group> groups = srdf_model_->getGroups();
+  bool found_chain = false;
+
+  for(int i = 0; i < groups.size(); ++i)
+  {
+    if(groups[i].name_ == _group)
+    {
+        if(groups[i].chains_.size() == 1)
+        {
+         chain_root_link_ = groups[i].chains_[0].first;
+         chain_tip_link_ = groups[i].chains_[0].second;
+
+         tree_.getChain(chain_root_link_, chain_tip_link_, chain_);
+         /*for(auto si : chain.segments)
+         {
+          if( isValidJointType(si.getJoint().getType()) )
+            _chain_info.joint_names.push_back(si.getJoint().getName());
+         }*/
+
+         chain_num_joints_ = chain_.getNrOfJoints(); // Should be equal to joint_names.size()
+
+         found_chain = true;
+         break;
+        }
+    }
+  }
+
+  return found_chain;   
+}
+
 unsigned int Kinematics::getNumJoints()
 {
-  return 7;
+  return chain_num_joints_;
 }
 
 void Kinematics::getPoseFromFK(const std::vector<double> joint_values,
 			       std::vector<double>& pose)
-{
+{/*
   unsigned int num_of_joints = this->getNumJoints();
   //  unsigned int num_free_parameters = this->getNumFreeParameters();
 
@@ -92,95 +173,50 @@ void Kinematics::getPoseFromFK(const std::vector<double> joint_values,
   pose.push_back(q1);
   pose.push_back(q2);
   pose.push_back(q3);
-  pose.push_back(q0);
+  pose.push_back(q0);*/
 }
 
 void Kinematics::computeFk(std::vector<double> joints,
-			   double[3] eetrans,
-			   double[9] eerot)
+			   double eetrans[3],
+			   double eerot[9])
 {
 
 }
   
-bool Kinematics::isIKSuccess(const std::vector< double >& pose,
-			     std::vector< double >& joints,
-			     int& numOfSolns)
+bool Kinematics::isIKSuccess(const std::vector< double >& _pose,
+			     std::vector< double >& _joints,
+			     int& _numOfSolns)
 {
-  unsigned int num_of_joints = this->getNumJoints();
-  //  unsigned int num_free_parameters = GetNumFreeParameters();
 
-  std::vector<std::vector<double> > solutions;
-
-  //  std::vector< IKREAL_TYPE > vfree(num_free_parameters);
-  eetrans[0] = pose[0];
-  eetrans[1] = pose[1];
-  eetrans[2] = pose[2];
-  double qw = pose[6];
-  double qx = pose[3];
-  double qy = pose[4];
-  double qz = pose[5];
-  const double n = 1.0f / sqrt(qx * qx + qy * qy + qz * qz + qw * qw);
-  qw *= n;
-  qx *= n;
-  qy *= n;
-  qz *= n;
-  eerot[0] = 1.0f - 2.0f * qy * qy - 2.0f * qz * qz;
-  eerot[1] = 2.0f * qx * qy - 2.0f * qz * qw;
-  eerot[2] = 2.0f * qx * qz + 2.0f * qy * qw;
-  eerot[3] = 2.0f * qx * qy + 2.0f * qz * qw;
-  eerot[4] = 1.0f - 2.0f * qx * qx - 2.0f * qz * qz;
-  eerot[5] = 2.0f * qy * qz - 2.0f * qx * qw;
-  eerot[6] = 2.0f * qx * qz - 2.0f * qy * qw;
-  eerot[7] = 2.0f * qy * qz + 2.0f * qx * qw;
-  eerot[8] = 1.0f - 2.0f * qx * qx - 2.0f * qy * qy;
-// for(std::size_t i = 0; i < vfree.size(); ++i)
-// vfree[i] = atof(argv[13+i]);
-// TODO: the user have to define the number of free parameters for the manipulator if it has more than 6 joints. So
-// currently more than 6 joints are not supported yet.
-
-  bool b1Success = ComputeIk(eetrans, eerot, vfree.size() > 0 ? &vfree[0] : NULL, solutions);
-
-
-  unsigned int num_of_solutions = (int)solutions.GetNumSolutions();
-  numOfSolns = num_of_solutions;
-
-  joints.resize(num_of_joints);
-
-  if (!b1Success)
-  {
-    return false;
-  }
-  else
-  {
-    // cout<<"Found ik solutions: "<< num_of_solutions<<endl;
-    const IkSolutionBase< IKREAL_TYPE >& sol = solutions.GetSolution(0);
-    int this_sol_free_params = (int)sol.GetFree().size();
-    if( this_sol_free_params <= 0){
-      sol.GetSolution(&joints[0], NULL);
-    }
-    else{
-      static std::vector< IKREAL_TYPE > vsolfree;
-      vsolfree.resize(this_sol_free_params);
-      sol.GetSolution(&joints[0], &vsolfree[0]);
-    }
-    return true;
-  }
-
+   KDL::JntArray q_in, q_out;
+   KDL::Frame p_in;
+   KDL::Twist bounds = KDL::Twist::Zero();
+   
+   p_in.p = KDL::Vector(_pose[0], _pose[1], _pose[2]);
+   p_in.M = KDL::Rotation::Quaternion(_pose[6], _pose[5], _pose[4], _pose[3]);
+   
+   fillZeros(q_in);
+   
+   int sols = ik_solver_->CartToJnt(q_in, p_in, q_out, bounds);
+   if(sols > 0 )
+   {
+     arrayToVector(q_out, _joints);
+     _numOfSolns = sols;
+     return true;
+   }
+   
+   return false;
 }
+
 
 const std::string Kinematics::getRobotName()
 {
-  const char* hash = GetKinematicsHash();
-
-  std::string part = hash;
-  part.erase(0, 22);
-  std::string name = part.substr(0, part.find(" "));
-  return name;
+  return urdf_->getName();
 }
 
 bool Kinematics::isIkSuccesswithTransformedBase(const geometry_msgs::Pose& base_pose,
                                                 const geometry_msgs::Pose& grasp_pose, std::vector<double>& joint_soln,int& numOfSolns)
-{
+{/*
   // Creating a transformation out of base pose
   tf2::Vector3 base_vec(base_pose.position.x, base_pose.position.y, base_pose.position.z);
   tf2::Quaternion base_quat(base_pose.orientation.x, base_pose.orientation.y, base_pose.orientation.z,
@@ -230,9 +266,23 @@ bool Kinematics::isIkSuccesswithTransformedBase(const geometry_msgs::Pose& base_
   if (k.isIKSuccess(new_grasp_pos,  joint_soln, numOfSolns))
     return true;
   else
-    return false;
+    return false;*/
+    return true;
 }
 
+
+void Kinematics::arrayToVector(const KDL::JntArray &_q, std::vector<double> &_js)
+{
+   _js.clear();
+   for(int i = 0; i < _q.data.size(); ++i)
+      _js.push_back(_q.data(i));
+}
+
+void Kinematics::fillZeros(KDL::JntArray &_q)
+{
+   _q.data = Eigen::VectorXd::Zero(chain_num_joints_);
+   
+}
 
 
 

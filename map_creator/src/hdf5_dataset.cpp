@@ -70,7 +70,7 @@ bool Hdf5Dataset::open()
 
   this->attr_ = H5Aopen(this->sphere_dataset_, "Resolution", H5P_DEFAULT);
   herr_t ret = H5Aread(this->attr_, H5T_NATIVE_FLOAT, &this->res_);
-
+  return true;
 }
 
 bool Hdf5Dataset::open_cap()
@@ -88,7 +88,7 @@ bool Hdf5Dataset::open_cap()
 
   this->attr_ = H5Aopen(this->capability_dataset_, "Resolution", H5P_DEFAULT);
   herr_t ret = H5Aread(this->attr_, H5T_NATIVE_FLOAT, &this->res_);
-
+  return true;
 }
 
 void Hdf5Dataset::close()
@@ -114,8 +114,10 @@ bool Hdf5Dataset::checkPath(std::string path)
   if (stat(path.c_str(), &st)!=0)
   {
     ROS_INFO("Path does not exist yet");
-    //return false;
+    return false;
   }
+  
+  return true;
 }
 
 void Hdf5Dataset::createPath(std::string path)
@@ -457,7 +459,7 @@ return 0;
 bool Hdf5Dataset::h5ToMultiMapPoses(MultiMap& pose_col)
 {
   MapVecDouble sphere_col;
-  h5ToMultiMapPoses(pose_col, sphere_col);
+  return h5ToMultiMapPoses(pose_col, sphere_col);
 }
 
 bool Hdf5Dataset::h5ToMultiMapPoses(MultiMap& pose_col, MapVecDouble& sphere_col)
@@ -520,7 +522,7 @@ bool Hdf5Dataset::h5ToMultiMapPoses(MultiMap& pose_col, MapVecDouble& sphere_col
       sphere_col.insert(std::make_pair(sphere_center, double(i)));
       }
   }
-return 0;
+  return true;
 }
 
 bool Hdf5Dataset::h5ToMultiMapSpheres(MapVecDouble& sphere_col)
@@ -555,13 +557,13 @@ bool Hdf5Dataset::h5ToMultiMapSpheres(MapVecDouble& sphere_col)
     }
     sphere_col.insert(std::pair< std::vector< double >, double >(sphere_center, ri));
    }
-  return 0;
+  return true;
 }
 
 bool Hdf5Dataset::h5ToResolution(float &resolution)
 {
   resolution = this->res_;
-  return 0;
+  return true;
 }
 
 

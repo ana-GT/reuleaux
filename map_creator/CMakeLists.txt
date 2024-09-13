@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_ros_planning_interface
   moveit_core
   interactive_markers
+  trac_ik_lib
 )
 
 find_package(octomap REQUIRED)
